@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Bryan 🐟 & Jeciw 🦁</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💕</text></svg>">
+<style>
+:root{--bg:#fdf6f8;--card:#fff;--text:#3a2e35;--muted:#8a7a82;--accent:#d6608a;--accent2:#7c6bd6;--border:#f0dde3;--done:#5fb87a}
+@media(prefers-color-scheme:dark){:root{--bg:#221a1f;--card:#2c2229;--text:#f2e6ea;--muted:#b09aa3;--accent:#f088a8;--accent2:#a79bf0;--border:#3d2f37;--done:#7fd996}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;padding:calc(14px + env(safe-area-inset-top)) 14px calc(60px + env(safe-area-inset-bottom));max-width:640px;margin:0 auto}
+h1{font-size:1.3rem;margin:6px 0 2px;text-align:center;background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;background-clip:text;color:transparent}
+.sub{text-align:center;color:var(--muted);font-size:.78rem;margin-bottom:12px}
+.tabs{display:flex;gap:6px;overflow-x:auto;padding-bottom:6px;margin-bottom:10px}
+.tab{flex:0 0 auto;padding:8px 12px;border-radius:20px;border:1px solid var(--border);background:var(--card);color:var(--muted);font-size:.82rem;cursor:pointer}
+.tab.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.panel{display:none}.panel.active{display:block}
+.card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:10px 12px;margin-bottom:8px;display:flex;align-items:center;gap:10px}
+.card .name{flex:1;font-size:.92rem}.note{display:block;font-size:.72rem;color:var(--muted);margin-top:2px}
+.sb{border:none;border-radius:14px;padding:6px 10px;font-size:.72rem;cursor:pointer;color:#fff;background:var(--muted)}.sb.done{background:var(--done)}
+.del{background:none;border:none;color:var(--muted);font-size:1rem;cursor:pointer}
+.row{display:flex;gap:6px;margin:8px 0 14px}
+input,select{flex:1;min-width:0;padding:9px 10px;border-radius:10px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:.9rem}
+.row button,.btn{background:var(--accent);color:#fff;border:none;border-radius:10px;padding:9px 14px;font-size:1rem;cursor:pointer}
+.btn.alt{background:var(--card);color:var(--muted);border:1px solid var(--border)}
+.total{display:flex;justify-content:space-between;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:10px 14px;margin-bottom:6px;font-weight:600;font-size:.9rem}
+.total b{color:var(--accent)}
+.sec{font-size:.8rem;color:var(--muted);margin:16px 0 6px;text-transform:uppercase;letter-spacing:.04em}
+.empty{color:var(--muted);font-size:.85rem;text-align:center;padding:16px 0}
+.amt{font-weight:600;font-size:.85rem}.neg{color:var(--accent)}.pos{color:var(--done)}
+.setup{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;font-size:.88rem;line-height:1.5}
+.setup input{width:100%;margin:6px 0 10px}
+.foot{text-align:center;color:var(--muted);font-size:.72rem;margin-top:18px}
+.foot a{color:var(--muted)}
+</style>
+</head>
+<body>
+<h1>Bryan 🐟 &amp; Jeciw 🦁</h1>
+<div class="sub" id="status"></div>
+<div id="app"></div>
+
+<script>
+const KINDS = {
+  kegiatan:{label:"Kegiatan",ph:"Tambah kegiatan baru..."},
+  tempat:{label:"Tempat",ph:"Tambah tempat tujuan..."},
+  kuliner:{label:"Kuliner",ph:"Tambah makanan/minuman..."},
+  experience:{label:"Experience",ph:"Tambah experience..."}
+};
+const DEFAULTS = ["Nonton bioskop","Netflix n chill (rebahan)","Jalan² mall","Jalan² taman (cobain mainan anak²)","Gowes","Mancing","Berenang","Pemandian air panas","Kebun raya","CFD / thrifting","Karaoke","Museum","Datang ke event kota","Seharian pakai transum","Piknik bawa makan","Piknik kerajinan (bawa lukisan / apapun)","Masak²","Foto studio","Ke perpus","Playtopia","Kebun buah","Olahraga"];
+const ALL = ["kegiatan","tempat","kuliner","experience","expenses","savings"];
+let cfg = JSON.parse(localStorage.getItem("cfg") || "null");
+let data = {}, pending = 0, tab = "kegiatan";
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const rp = n => "Rp" + Math.round(n||0).toLocaleString("id-ID");
+const cloud = () => cfg && cfg.url;
+const base = () => cfg.url.replace(/\/+$/,"") + "/" + encodeURIComponent(cfg.code || "tracker");
+
+function setup(){
+  $("#status").textContent = "";
+  $("#app").innerHTML = `<div class="setup">
+    <b>Pengaturan awal</b><br>
+    Supaya data Bryan &amp; Jeciw tersinkron, isi alamat database (lihat panduan). Atau pakai mode lokal (data hanya di HP/browser ini).
+    <input id="s-url" placeholder="https://nama-project-default-rtdb....firebasedatabase.app" value="${esc(cfg&&cfg.url||"")}">
+    <input id="s-code" placeholder="Kode rahasia berdua (bebas, mis. bryan-jeciw-2026)" value="${esc(cfg&&cfg.code||"")}">
+    <div style="display:flex;gap:8px"><button class="btn" onclick="saveCfg()">Simpan & mulai</button><button class="btn alt" onclick="useLocal()">Mode lokal</button></div>
+  </div>`;
+}
+function saveCfg(){
+  const url=$("#s-url").value.trim(), code=$("#s-code").value.trim();
+  if(!url.startsWith("https://")||!code){alert("Isi alamat database (https://...) dan kode rahasia.");return}
+  cfg={url,code}; localStorage.setItem("cfg",JSON.stringify(cfg)); start();
+}
+function useLocal(){cfg={local:true};localStorage.setItem("cfg",JSON.stringify(cfg));start()}
+function resetCfg(){if(confirm("Ubah pengaturan sinkron di perangkat ini? (data tidak dihapus)")){localStorage.removeItem("cfg");cfg=null;setup()}}
+
+async function load(){
+  if(cloud()){
+    const r = await fetch(base()+".json"); if(!r.ok) throw new Error(r.status);
+    data = (await r.json()) || {};
+  } else data = JSON.parse(localStorage.getItem("td")||"null") || {};
+}
+async function seed(){
+  if(data.kegiatan && Object.keys(data.kegiatan).length) return;
+  const o = {}; DEFAULTS.forEach((n,i)=>{o["d"+String(i).padStart(2,"0")]={name:n,done:false,ts:i}});
+  data.kegiatan = o;
+  if(cloud()) await fetch(base()+"/kegiatan.json",{method:"PUT",body:JSON.stringify(o)}); else localStorage.setItem("td",JSON.stringify(data));
+}
+async function setItem(kind,id,val){
+  data[kind] = data[kind] || {};
+  if(val===null) delete data[kind][id]; else data[kind][id]=val;
+  render();
+  if(cloud()){
+    pending++;
+    try{await fetch(`${base()}/${kind}/${id}.json`,{method:val===null?"DELETE":"PUT",body:JSON.stringify(val)})}
+    catch(e){$("#status").textContent="⚠️ Gagal menyimpan, cek koneksi"}
+    pending--;
+  } else localStorage.setItem("td",JSON.stringify(data));
+}
+const newId = () => Date.now().toString(36)+Math.random().toString(36).slice(2,5);
+const list = k => Object.entries(data[k]||{}).map(([id,v])=>({id,...v})).sort((a,b)=>(a.ts||0)-(b.ts||0));
+
+function addItem(kind){
+  const el=$("#in-"+kind), name=el.value.trim(); if(!name) return; el.value="";
+  setItem(kind,newId(),{name,done:false,ts:Date.now()});
+}
+function toggle(kind,id){const v=data[kind][id]; setItem(kind,id,{...v,done:!v.done})}
+function del(kind,id){setItem(kind,id,null)}
+function addMoney(kind){
+  const d=$("#d-"+kind), a=$("#a-"+kind), w=$("#w-"+kind);
+  const desc=d.value.trim(), amount=Number(a.value); if(!desc||!amount) return;
+  const date=new Date().toLocaleDateString("id-ID",{day:"2-digit",month:"short",year:"numeric"});
+  d.value="";a.value="";
+  setItem(kind,newId(),{desc,amount,who:w.value,date,ts:Date.now()});
+}
+
+function checklist(kind){
+  const items=list(kind), done=items.filter(i=>i.done).length;
+  return `<div class="row"><input id="in-${kind}" placeholder="${KINDS[kind].ph}" onkeydown="if(event.key==='Enter')addItem('${kind}')"><button onclick="addItem('${kind}')">+</button></div>
+  <div class="total"><span>Sudah</span><b>${done} / ${items.length}</b></div><div style="height:6px"></div>` +
+  (items.length ? items.map(i=>`<div class="card"><div class="name">${esc(i.name)}</div>
+    <button class="sb ${i.done?'done':''}" onclick="toggle('${kind}','${i.id}')">${i.done?'Sudah':'Belum'}</button>
+    <button class="del" onclick="del('${kind}','${i.id}')">✕</button></div>`).join("") : '<div class="empty">Belum ada item ✨</div>');
+}
+function money(kind,label,cls){
+  const items=list(kind).reverse(), total=items.reduce((s,i)=>s+(Number(i.amount)||0),0);
+  const by=w=>items.filter(i=>i.who===w).reduce((s,i)=>s+(Number(i.amount)||0),0);
+  return `<div class="sec">${label}</div>
+  <div class="total"><span>Total</span><b>${rp(total)}</b></div>
+  <div class="total"><span>🐟 Bryan</span><b>${rp(by("Bryan"))}</b></div>
+  <div class="total"><span>🦁 Jeciw</span><b>${rp(by("Jeciw"))}</b></div>
+  <div class="row"><input id="d-${kind}" placeholder="Keterangan"><input id="a-${kind}" type="number" inputmode="numeric" placeholder="Rp" style="max-width:100px"><select id="w-${kind}" style="max-width:90px"><option>Bryan</option><option>Jeciw</option><option>Berdua</option></select><button onclick="addMoney('${kind}')">+</button></div>` +
+  (items.length ? items.map(i=>`<div class="card"><div class="name">${esc(i.desc)}<span class="note">${esc(i.date||"")} · ${esc(i.who||"")}</span></div><div class="amt ${cls}">${rp(i.amount)}</div><button class="del" onclick="del('${kind}','${i.id}')">✕</button></div>`).join("") : '<div class="empty">Belum ada catatan.</div>');
+}
+function render(){
+  const tabs=[...Object.keys(KINDS),"keuangan"], names={...Object.fromEntries(Object.entries(KINDS).map(([k,v])=>[k,v.label])),keuangan:"Keuangan"};
+  const keep = document.activeElement && document.activeElement.id ? {id:document.activeElement.id,v:document.activeElement.value} : null;
+  $("#app").innerHTML = `<div class="tabs">${tabs.map(t=>`<div class="tab ${t===tab?'active':''}" onclick="tab='${t}';render()">${names[t]}</div>`).join("")}</div>` +
+    (tab==="keuangan" ? money("expenses","Pengeluaran","neg")+money("savings","Tabungan","pos") : checklist(tab)) +
+    `<div class="foot">${cloud()?"☁️ Tersinkron":"📱 Mode lokal"} · <a href="#" onclick="resetCfg();return false">pengaturan</a></div>`;
+  if(keep){const e=document.getElementById(keep.id); if(e){e.value=keep.v; e.focus()}}
+}
+
+async function refresh(){
+  if(!cloud()||pending||document.hidden) return;
+  const a=document.activeElement; if(a && a.tagName==="INPUT" && a.value) return;
+  try{await load(); $("#status").textContent=""; render()}catch(e){$("#status").textContent="⚠️ Tidak bisa terhubung ke database"}
+}
+async function start(){
+  $("#status").textContent = "Memuat...";
+  try{await load(); await seed(); $("#status").textContent=""; render()}
+  catch(e){$("#status").textContent="⚠️ Gagal terhubung. Cek alamat database & aturan (rules)."; setup()}
+}
+if(cfg) start(); else setup();
+setInterval(refresh,5000);
+document.addEventListener("visibilitychange",refresh);
+</script>
+</body>
+</html>
